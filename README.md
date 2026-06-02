@@ -14,13 +14,12 @@ Sub-questions:
 
 ## Key Findings
 
-*From a working sample of ~2,000 private-foundation (990-PF) returns in the IRS 2020 e-file release (fiscal years ~2018–2019): 21,000+ grants, of which ~225 were flagged as racial-equity-related. Numbers are sample-specific; the pipeline scales to more release years.*
+*From a working sample of 990-PF returns pulled from two IRS release archives (2020 + 2023), spanning fiscal years ~2018–2022: ~57,000 grants, of which ~360 were flagged as racial-equity-related across 30 funders. This is a **convenience sample** (first N filings per archive), so the numbers below illustrate the analysis, not representative national totals.*
 
-- **Racial equity is a small, concentrated slice.** Racial-equity-tagged grants are a low single-digit share of all foundation grants in the sample, and the dollars are highly concentrated — a handful of mission-aligned funders (e.g., The California Endowment) account for the large majority (high Herfindahl-Hirschman Index).
+- **Racial equity is a small, concentrated slice.** Racial-equity-tagged grants are a low single-digit share of all foundation grants in the sample, and the dollars are highly concentrated — a few mission-aligned funders (e.g., The California Endowment) account for the large majority (high Herfindahl-Hirschman Index).
 - **Recipients cluster geographically**, tracking where large racial-equity funders are based.
 - **Issue mix leads with health, immigration, and civil/voting rights**, inferred from grant-purpose text (990-PF filings carry no recipient EIN, so NTEE codes require the Candid integration).
-
-> These patterns echo [Candid's published research](https://blog.candid.org/post/what-does-candids-grants-data-say-about-funding-for-racial-equity-in-the-united-states/) that funding for racial/ethnic communities is a modest, concentrated share of U.S. giving. A genuine pre/post-2020 time series requires loading multiple IRS release years (the analysis code is in place and runs when the data spans 2020).
+- **Time dimension is wired up but not representative.** The data spans 2018–2022 and a pre/post-2020 Welch's t-test runs, but in this convenience sample annual totals are dominated by which large funders happen to appear — so the test is a methodology demonstration. [Candid's representative research](https://blog.candid.org/post/what-does-candids-grants-data-say-about-funding-for-racial-equity-in-the-united-states/) shows racial-equity funding *rose* after 2020; confirming that here would require random sampling across many release archives.
 
 ## Methodology
 

@@ -238,6 +238,21 @@ def load_cached_990pf_xml(object_id: str) -> Optional[str]:
     return None
 
 
+def _zip_filename(year: int, chunk: str) -> str:
+    """
+    Build the bulk-archive filename for a given IRS release year.
+
+    The IRS changed its naming scheme:
+      - 2017-2020 releases: 'download990xml_{YEAR}_{chunk}.zip', chunks '1'..'8'
+        (each ~400 MB)
+      - 2021+ releases:     '{YEAR}_TEOS_XML_{chunk}.zip', chunks '01A','02A',...
+        (large — 2021/2022 are multiple GB; 2023 '01A' is ~120 MB)
+    """
+    if year <= 2020:
+        return f"download990xml_{year}_{chunk}.zip"
+    return f"{year}_TEOS_XML_{chunk}.zip"
+
+
 def _download_zip_to_cache(year: int, chunk: str) -> Path:
     """
     Download a bulk 990 ZIP chunk to data/raw/ (cached). Returns the local path.
@@ -250,8 +265,8 @@ def _download_zip_to_cache(year: int, chunk: str) -> Path:
         log.info("Using cached ZIP %s", cache.name)
         return cache
 
-    url = f"{IRS_BASE}/{year}/download990xml_{year}_{chunk}.zip"
-    log.info("Downloading ZIP chunk %s for %d (~400MB, one time)…", chunk, year)
+    url = f"{IRS_BASE}/{year}/{_zip_filename(year, chunk)}"
+    log.info("Downloading ZIP %s for %d (one time)…", chunk, year)
     resp = requests.get(url, timeout=600, stream=True)
     resp.raise_for_status()
 
