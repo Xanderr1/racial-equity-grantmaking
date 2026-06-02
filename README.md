@@ -83,4 +83,4 @@ Open notebooks in order: `01` → `02` → `03` → `04`.
 - Philanthropic Initiative for Racial Equity (PRE): [racialequity.org](https://racialequity.org)
 
 ---
-*Built with [Claude Code](https://claude.ai/claude-code)*
+*Built with Claude Code
