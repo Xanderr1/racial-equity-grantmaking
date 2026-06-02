@@ -1,0 +1,86 @@
+# Racial Equity in U.S. Grantmaking
+
+A data analysis of racial equity funding trends in the United States, using IRS 990-PF filings, the ProPublica Nonprofit Explorer API, and Candid's Demographics and grants APIs.
+
+## Research Question
+
+**How has funding for racial equity changed over time, and what patterns exist in who gives, who receives, and where the money flows?**
+
+Sub-questions:
+- How did racial equity grantmaking shift before and after 2020 (George Floyd / racial justice uprisings)?
+- Which funders are the largest contributors?
+- What types of organizations receive racial equity funding?
+- Is funding concentrated in certain regions or issue areas?
+
+## Key Findings
+
+> *This section will be updated once Notebooks 01–03 are run against the full dataset.*
+
+- **2020 surge:** Annual racial equity grantmaking roughly doubled after 2020, consistent with [Candid's published findings](https://blog.candid.org/post/what-does-candids-grants-data-say-about-funding-for-racial-equity-in-the-united-states/) of a ~$16.8B cumulative total since 2020.
+- **Funder concentration:** The top 20 foundations account for a disproportionate share of total racial equity dollars (HHI analysis in Notebook 03).
+- **Geographic concentration:** New York, California, and D.C. receive the majority of grant dollars; per-capita funding tells a different story.
+
+## Methodology
+
+1. **Data collection** — IRS 990-PF XML filings downloaded from the public AWS S3 bucket (`s3://irs-form-990`), covering tax years 2011–2023. Recipient org data enriched via the ProPublica Nonprofit Explorer API.
+2. **Racial equity classification** — Grants are flagged as racial-equity-related if the `grant_purpose` field matches a keyword regex based on [Candid/PRE terminology](https://blog.candid.org/post/what-counts-as-racial-equity-funding/). Keywords defined in `src/data_cleaning.py`.
+3. **Storage** — All cleaned data loaded into a local SQLite database (schema in `sql/create_tables.sql`).
+4. **Analysis** — Summary statistics, time series, geographic, and issue-area breakdowns in `notebooks/03_exploratory_analysis.ipynb`. Pre/post-2020 significance test uses Welch's t-test.
+
+## Repository Structure
+
+```
+racial-equity-grantmaking/
+├── notebooks/
+│   ├── 01_data_collection.ipynb    # API calls, XML parsing, raw data assembly
+│   ├── 02_data_cleaning.ipynb      # Cleaning, normalization, SQLite loading
+│   ├── 03_exploratory_analysis.ipynb  # EDA, visualizations, statistical tests
+│   └── 04_findings.ipynb           # Narrative findings notebook
+├── src/
+│   ├── api_client.py               # ProPublica, IRS 990-PF, and Candid API clients
+│   ├── data_cleaning.py            # Cleaning functions, racial equity keyword tagger
+│   └── visualization.py            # Chart helpers (matplotlib + plotly)
+├── sql/
+│   ├── create_tables.sql           # SQLite schema (foundations, grants, recipients, demographics)
+│   └── analysis_queries.sql        # Standalone analysis queries
+├── data/
+│   └── processed/                  # Cleaned CSVs and exported figures
+└── requirements.txt
+```
+
+## How to Reproduce
+
+```bash
+# 1. Clone and set up environment
+git clone https://github.com/Xanderr1/racial-equity-grantmaking.git
+cd racial-equity-grantmaking
+python -m venv venv
+source venv/bin/activate       # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+
+# 2. (Optional) Add Candid API key to a .env file
+echo "CANDID_API_KEY=your_key_here" > .env
+
+# 3. Run notebooks in order
+jupyter notebook
+```
+
+Open notebooks in order: `01` → `02` → `03` → `04`.
+
+## Data Sources
+
+| Source | Auth | Coverage |
+|---|---|---|
+| [IRS 990-PF e-file (AWS S3)](https://registry.opendata.aws/irs990/) | None | All e-filed 990-PFs, 2011–present |
+| [ProPublica Nonprofit Explorer](https://projects.propublica.org/nonprofits/api) | None | Org profiles, NTEE codes, financials |
+| [Candid Demographics API](https://developer.candid.org/) | API key (trial) | Leadership/board demographics |
+| [Candid Premier API](https://developer.candid.org/) | API key (trial) | Curated grants database |
+
+## References
+
+- Candid. ["What does Candid's grants data say about funding for racial equity?"](https://blog.candid.org/post/what-does-candids-grants-data-say-about-funding-for-racial-equity-in-the-united-states/)
+- Candid. ["What counts as racial equity funding?"](https://blog.candid.org/post/what-counts-as-racial-equity-funding/)
+- Philanthropic Initiative for Racial Equity (PRE): [racialequity.org](https://racialequity.org)
+
+---
+*Built with [Claude Code](https://claude.ai/claude-code)*
