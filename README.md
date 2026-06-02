@@ -22,7 +22,7 @@ Sub-questions:
 
 ## Methodology
 
-1. **Data collection** — IRS 990-PF XML filings downloaded from the public AWS S3 bucket (`s3://irs-form-990`), covering tax years 2011–2023. Recipient org data enriched via the ProPublica Nonprofit Explorer API.
+1. **Data collection** — IRS 990-PF filings sourced via two methods: (a) index CSVs from `apps.irs.gov` (fast, covering 2017–2023, listing all e-filed 990-PFs with EINs and filing metadata); (b) optional bulk ZIP download for XML grant detail (~400 MB/year). Recipient org data enriched via the ProPublica Nonprofit Explorer API. Note: the IRS deprecated its AWS S3 e-file bucket in December 2021 — individual XML files at `s3.amazonaws.com/irs-form-990/` are no longer accessible.
 2. **Racial equity classification** — Grants are flagged as racial-equity-related if the `grant_purpose` field matches a keyword regex based on [Candid/PRE terminology](https://blog.candid.org/post/what-counts-as-racial-equity-funding/). Keywords defined in `src/data_cleaning.py`.
 3. **Storage** — All cleaned data loaded into a local SQLite database (schema in `sql/create_tables.sql`).
 4. **Analysis** — Summary statistics, time series, geographic, and issue-area breakdowns in `notebooks/03_exploratory_analysis.ipynb`. Pre/post-2020 significance test uses Welch's t-test.
@@ -71,7 +71,7 @@ Open notebooks in order: `01` → `02` → `03` → `04`.
 
 | Source | Auth | Coverage |
 |---|---|---|
-| [IRS 990-PF e-file (AWS S3)](https://registry.opendata.aws/irs990/) | None | All e-filed 990-PFs, 2011–present |
+| [IRS 990-PF index CSVs](https://apps.irs.gov/pub/epostcard/990/xml/) | None | All e-filed 990-PFs, 2017–present (index); bulk XML ZIPs available |
 | [ProPublica Nonprofit Explorer](https://projects.propublica.org/nonprofits/api) | None | Org profiles, NTEE codes, financials |
 | [Candid Demographics API](https://developer.candid.org/) | API key (trial) | Leadership/board demographics |
 | [Candid Premier API](https://developer.candid.org/) | API key (trial) | Curated grants database |
