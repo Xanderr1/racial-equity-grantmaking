@@ -50,22 +50,37 @@ racial-equity-grantmaking/
 
 ## How to Reproduce
 
+**Requirements:** Python 3.11+, Git
+
 ```bash
-# 1. Clone and set up environment
+# 1. Clone the repo
 git clone https://github.com/Xanderr1/racial-equity-grantmaking.git
 cd racial-equity-grantmaking
+
+# 2. Create and activate a virtual environment
 python -m venv venv
-source venv/bin/activate       # Windows: venv\Scripts\activate
+
+# Mac/Linux:
+source venv/bin/activate
+
+# Windows (PowerShell):
+.\venv\Scripts\Activate.ps1
+
+# 3. Install all dependencies (includes Jupyter, ipykernel, pandas, etc.)
 pip install -r requirements.txt
 
-# 2. (Optional) Add Candid API key to a .env file
-echo "CANDID_API_KEY=your_key_here" > .env
+# 4. (Optional) Add Candid API key — needed only for demographic enrichment
+#    Create a file called .env in the project root:
+#    CANDID_API_KEY=your_key_here
 
-# 3. Run notebooks in order
-jupyter notebook
+# 5. Launch JupyterLab
+jupyter lab
 ```
 
 Open notebooks in order: `01` → `02` → `03` → `04`.
+
+**Using VS Code instead of JupyterLab?**
+Install the [Jupyter extension](https://marketplace.visualstudio.com/items?itemName=ms-toolsai.jupyter), open the project folder, and select the `venv` interpreter as your kernel. All dependencies including `ipykernel` are included in `requirements.txt`.
 
 ## Data Sources
 

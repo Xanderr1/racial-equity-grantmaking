@@ -1,6 +1,7 @@
 pandas>=2.0
 requests>=2.31
 jupyter>=1.0
+jupyterlab>=4.0
 matplotlib>=3.7
 seaborn>=0.12
 plotly>=5.15
@@ -8,3 +9,5 @@ lxml>=4.9
 scipy>=1.11
 tqdm>=4.65
 python-dotenv>=1.0
+ipykernel>=6.0
+ipywidgets>=8.0
