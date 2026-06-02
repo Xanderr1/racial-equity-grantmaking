@@ -50,7 +50,7 @@ racial-equity-grantmaking/
 
 ## How to Reproduce
 
-**Requirements:** Python 3.11+, Git
+**Requirements:** Python 3.11+ (from [python.org](https://www.python.org/downloads/)), Git
 
 ```bash
 # 1. Clone the repo
@@ -58,13 +58,13 @@ git clone https://github.com/Xanderr1/racial-equity-grantmaking.git
 cd racial-equity-grantmaking
 
 # 2. Create and activate a virtual environment
-python -m venv venv
+python -m venv .venv
 
 # Mac/Linux:
-source venv/bin/activate
+source .venv/bin/activate
 
 # Windows (PowerShell):
-.\venv\Scripts\Activate.ps1
+.\.venv\Scripts\Activate.ps1
 
 # 3. Install all dependencies (includes Jupyter, ipykernel, pandas, etc.)
 pip install -r requirements.txt
@@ -80,7 +80,12 @@ jupyter lab
 Open notebooks in order: `01` → `02` → `03` → `04`.
 
 **Using VS Code instead of JupyterLab?**
-Install the [Jupyter extension](https://marketplace.visualstudio.com/items?itemName=ms-toolsai.jupyter), open the project folder, and select the `venv` interpreter as your kernel. All dependencies including `ipykernel` are included in `requirements.txt`.
+Install the [Jupyter extension](https://marketplace.visualstudio.com/items?itemName=ms-toolsai.jupyter), open the project folder, and select the `.venv` interpreter as your kernel (top-right of any notebook). All dependencies including `ipykernel` are included in `requirements.txt`.
+
+### Windows notes
+
+- **Use a short install path** (e.g. `C:\Projects\`). Windows has a 260-character path limit by default, and some dependencies (JupyterLab extensions) have deeply nested filenames that can overflow it. Cloning into a long path such as a synced OneDrive Documents folder may cause `pip install` to fail with `OSError: [Errno 2] No such file or directory`.
+- **Install Python from [python.org](https://www.python.org/downloads/)**, not the Microsoft Store. The Store version of Python can hang when creating virtual environments (`python -m venv`).
 
 ## Data Sources
 
