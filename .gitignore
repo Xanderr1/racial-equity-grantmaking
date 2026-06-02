@@ -22,6 +22,11 @@ data/raw/
 *.sqlite-shm
 *.db
 
+# Generated analysis outputs (reproducible by running the notebooks)
+data/processed/*.csv
+data/processed/*.png
+data/processed/*.html
+
 # Environment / secrets
 .env
 *.env
