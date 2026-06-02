@@ -42,12 +42,28 @@ PROPUBLICA_BASE = "https://projects.propublica.org/nonprofits/api/v2"
 
 
 def _get(url: str, params: dict = None, retries: int = 3) -> dict:
-    """GET with retry/backoff. Returns parsed JSON or raises."""
+    """
+    GET with retry/backoff. Returns parsed JSON or raises.
+
+    Client errors (HTTP 4xx, e.g. a 404 for an EIN not in the database) are not
+    retried — they won't succeed on a second attempt. Only transient failures
+    (timeouts, connection errors, 5xx) are retried with exponential backoff.
+    """
     for attempt in range(retries):
         try:
             resp = requests.get(url, params=params, timeout=15)
             resp.raise_for_status()
             return resp.json()
+        except requests.HTTPError as exc:
+            status = exc.response.status_code if exc.response is not None else None
+            if status is not None and 400 <= status < 500:
+                raise  # client error — do not retry
+            if attempt < retries - 1:
+                wait = 2 ** attempt
+                log.warning("Request failed (%s), retrying in %ds…", exc, wait)
+                time.sleep(wait)
+            else:
+                raise
         except requests.RequestException as exc:
             if attempt < retries - 1:
                 wait = 2 ** attempt
