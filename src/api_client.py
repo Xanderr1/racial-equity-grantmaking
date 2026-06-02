@@ -307,11 +307,16 @@ def sample_990pf_from_zip(year: int, chunk: str = "1", max_filings: int = 400,
         for name in zf.namelist():
             if len(results) >= max_filings:
                 break
+            if not name.endswith(".xml"):
+                continue  # skip directory entries / non-XML
             data = zf.read(name)
             # Fast pre-filter before full XML parse
             if b"ReturnTypeCd>990PF" not in data:
                 continue
-            oid = name.replace("_public.xml", "")
+            # ObjectId = the bare filename, dropping any folder prefix and
+            # either suffix style ('_public.xml' for 2017-2020, '.xml' for 2021+).
+            base = name.rsplit("/", 1)[-1]
+            oid = base.replace("_public.xml", "").replace(".xml", "")
             xml_text = data.decode("utf-8", errors="replace")
             results[oid] = xml_text
             if save:
