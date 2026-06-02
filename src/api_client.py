@@ -3,16 +3,25 @@ API clients for the racial equity grantmaking analysis project.
 
 Active:
   - ProPublica Nonprofit Explorer (no auth required)
-  - IRS 990-PF XML parser (public S3 bucket, no auth required)
+  - IRS 990-PF: index via apps.irs.gov CSV; XMLs via bulk ZIP download
 
 Stubbed (activate after Candid API key arrives):
   - Candid Demographics API
   - Candid Essentials / Premier API
+
+NOTE on IRS data: The IRS deprecated its S3 e-file bucket in Dec 2021.
+Individual XML files are no longer available at direct URLs. Data is now
+distributed as bulk ZIP archives at:
+  https://apps.irs.gov/pub/epostcard/990/xml/{YEAR}/download990xml_{YEAR}_{chunk}.zip
+Index CSVs (small, fast) are still at:
+  https://apps.irs.gov/pub/epostcard/990/xml/{YEAR}/index_{YEAR}.csv
 """
 
+import io
 import os
 import time
 import logging
+import zipfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Optional
@@ -93,15 +102,22 @@ def propublica_filings(ein: str) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
-# IRS 990-PF XML Parser  (AWS S3 public bucket)
+# IRS 990-PF Data  (apps.irs.gov — IRS deprecated S3 bucket in Dec 2021)
 # ---------------------------------------------------------------------------
 
-IRS_S3_BASE = "https://s3.amazonaws.com/irs-form-990"
-IRS_INDEX_BASE = "https://www.irs.gov/pub/irs-soi"
+IRS_BASE = "https://apps.irs.gov/pub/epostcard/990/xml"
 
 # Namespace used in IRS 990 e-file XML schemas
 _NS = {
     "irs": "http://www.irs.gov/efile",
+}
+
+# Known chunk identifiers by year (from IRS downloads page)
+_IRS_CHUNKS = {
+    2020: [str(i) for i in range(1, 9)],   # 2020: chunks 1-8
+    2019: [str(i) for i in range(1, 9)],
+    2018: [str(i) for i in range(1, 9)],
+    2017: [str(i) for i in range(1, 9)],
 }
 
 
@@ -110,53 +126,100 @@ def fetch_990_index(year: int) -> list[dict]:
     Download the IRS e-file index CSV for a given year and return rows
     for 990-PF filings only.
 
-    The IRS publishes annual index files at:
-      https://www.irs.gov/pub/irs-soi/eo{YY}index.csv   (older)
-      or JSON index at s3://irs-form-990/index_YYYY.json
+    Index CSVs are at:
+      https://apps.irs.gov/pub/epostcard/990/xml/{YEAR}/index_{YEAR}.csv
 
-    We use the JSON index (available 2011-present).
+    Columns: RETURN_ID, FILING_TYPE, EIN, TAX_PERIOD, SUB_DATE,
+             TAXPAYER_NAME, RETURN_TYPE, DLN, OBJECT_ID
 
     Args:
-        year: Four-digit filing year (e.g. 2022).
+        year: Four-digit tax year (e.g. 2020). Data available from ~2017.
 
     Returns:
-        List of dicts, each with keys: EIN, DLN, ObjectId, FormType,
-        SubmittedOn, LastUpdated, IsElectronic, URL.
-        Filtered to FormType == '990PF'.
+        List of dicts with keys matching CSV columns, filtered to
+        RETURN_TYPE == '990PF'.
     """
-    url = f"{IRS_S3_BASE}/index_{year}.json"
+    url = f"{IRS_BASE}/{year}/index_{year}.csv"
     log.info("Fetching IRS index for %d…", year)
-    resp = requests.get(url, timeout=60)
+    resp = requests.get(url, timeout=60, stream=True)
     resp.raise_for_status()
-    rows = resp.json().get("Filings", [])
-    pf_rows = [r for r in rows if r.get("FormType") == "990PF"]
-    log.info("  Found %d 990-PF filings for %d", len(pf_rows), year)
-    return pf_rows
+
+    rows = []
+    lines = resp.iter_lines()
+    headers = next(lines).decode("utf-8").split(",")
+    for line in lines:
+        values = line.decode("utf-8").split(",")
+        row = dict(zip(headers, values))
+        if row.get("RETURN_TYPE") == "990PF":
+            rows.append(row)
+
+    log.info("  Found %d 990-PF filings for %d", len(rows), year)
+    return rows
 
 
-def download_990pf_xml(object_id: str, save: bool = True) -> str:
+def download_990pf_from_zip(year: int, object_ids: list[str], chunk: str,
+                             save: bool = True) -> dict[str, str]:
     """
-    Download a single 990-PF XML filing from S3 by its ObjectId.
+    Download a ZIP chunk from the IRS and extract specific 990-PF XMLs by ObjectId.
+
+    The IRS provides bulk ZIP archives at:
+      https://apps.irs.gov/pub/epostcard/990/xml/{YEAR}/download990xml_{YEAR}_{chunk}.zip
+
+    Each ZIP contains individual XML files named '{OBJECT_ID}_public.xml'.
 
     Args:
-        object_id: The ObjectId from the index (e.g. '202142349349300144').
-        save:      If True, write the XML to data/raw/990pf/{object_id}.xml.
+        year:       Four-digit tax year.
+        object_ids: List of OBJECT_ID strings to extract from the ZIP.
+        chunk:      Chunk identifier (e.g. '1', '2', '01A').
+        save:       If True, save extracted XMLs to data/raw/990pf/.
 
     Returns:
-        Raw XML string.
+        Dict mapping object_id → xml_text for successfully extracted files.
     """
-    url = f"{IRS_S3_BASE}/{object_id}_public.xml"
-    log.info("Downloading 990-PF %s…", object_id)
-    resp = requests.get(url, timeout=30)
+    url = f"{IRS_BASE}/{year}/download990xml_{year}_{chunk}.zip"
+    log.info("Downloading ZIP chunk %s for %d (~400MB, may take a while)…", chunk, year)
+
+    resp = requests.get(url, timeout=600, stream=True)
     resp.raise_for_status()
-    xml_text = resp.text
 
-    if save:
-        out_dir = RAW_DATA_DIR / "990pf"
-        out_dir.mkdir(exist_ok=True)
-        (out_dir / f"{object_id}.xml").write_text(xml_text, encoding="utf-8")
+    # Buffer the full ZIP in memory (required for random access within ZIP)
+    zip_bytes = io.BytesIO()
+    downloaded = 0
+    for data in resp.iter_content(chunk_size=1024 * 1024):
+        zip_bytes.write(data)
+        downloaded += len(data)
+        if downloaded % (50 * 1024 * 1024) == 0:
+            log.info("  Downloaded %d MB…", downloaded // (1024 * 1024))
 
-    return xml_text
+    zip_bytes.seek(0)
+    target_names = {f"{oid}_public.xml" for oid in object_ids}
+    results = {}
+
+    with zipfile.ZipFile(zip_bytes) as zf:
+        available = set(zf.namelist())
+        found = available & target_names
+        log.info("  Found %d/%d requested files in ZIP", len(found), len(object_ids))
+        for name in found:
+            oid = name.replace("_public.xml", "")
+            xml_text = zf.read(name).decode("utf-8")
+            results[oid] = xml_text
+            if save:
+                out_dir = RAW_DATA_DIR / "990pf"
+                out_dir.mkdir(exist_ok=True)
+                (out_dir / f"{oid}.xml").write_text(xml_text, encoding="utf-8")
+
+    return results
+
+
+def load_cached_990pf_xml(object_id: str) -> Optional[str]:
+    """
+    Load a previously downloaded 990-PF XML from the local cache.
+    Returns None if not cached.
+    """
+    path = RAW_DATA_DIR / "990pf" / f"{object_id}.xml"
+    if path.exists():
+        return path.read_text(encoding="utf-8")
+    return None
 
 
 def parse_990pf_grants(xml_text: str) -> list[dict]:
