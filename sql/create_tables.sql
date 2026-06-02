@@ -60,8 +60,10 @@ CREATE TABLE IF NOT EXISTS grants (
     is_racial_equity INTEGER NOT NULL DEFAULT 0,  -- 0/1 boolean
     source           TEXT,           -- 'irs_990pf' | 'candid'
     object_id        TEXT,           -- IRS filing ObjectId for traceability
-    created_at       TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY (funder_ein) REFERENCES foundations (ein)
+    created_at       TEXT DEFAULT (datetime('now'))
+    -- Logical relationship: grants.funder_ein -> foundations.ein
+    -- (not enforced as a SQL FK: foundations.ein is not unique on its own,
+    --  and bulk loads span tables; joins use the indexes below)
 );
 
 CREATE INDEX IF NOT EXISTS idx_grants_funder_ein      ON grants (funder_ein);
@@ -83,8 +85,8 @@ CREATE TABLE IF NOT EXISTS demographics (
     leader_gender          TEXT,
     data_year              INTEGER,
     source                 TEXT DEFAULT 'candid_demographics',
-    created_at             TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY (ein) REFERENCES recipients (ein)
+    created_at             TEXT DEFAULT (datetime('now'))
+    -- Logical relationship: demographics.ein -> recipients.ein
 );
 
 CREATE INDEX IF NOT EXISTS idx_demographics_ein ON demographics (ein);

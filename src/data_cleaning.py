@@ -60,10 +60,13 @@ def normalize_org_name(name: str) -> Optional[str]:
     """
     Lowercase, strip punctuation noise, collapse whitespace.
     Does NOT remove legal suffixes — keeps them for deduplication matching.
+    Returns None for missing/non-string input (e.g. NaN).
     """
-    if not name:
+    if not isinstance(name, str):
         return None
     name = name.upper().strip()
+    if not name:
+        return None
     # Remove non-alphanumeric except spaces and hyphens
     name = re.sub(r"[^\w\s\-]", " ", name)
     name = re.sub(r"\s+", " ", name).strip()
@@ -142,9 +145,9 @@ _RE_RACIAL_EQUITY = re.compile(
 def is_racial_equity_grant(purpose_text: str) -> bool:
     """
     Return True if the grant purpose text matches racial equity keywords.
-    Returns False for empty/None input.
+    Returns False for empty/None/non-string input (e.g. NaN).
     """
-    if not purpose_text:
+    if not isinstance(purpose_text, str) or not purpose_text:
         return False
     return bool(_RE_RACIAL_EQUITY.search(purpose_text))
 

@@ -18,6 +18,8 @@ build/
 # Data (raw data stays local)
 data/raw/
 *.sqlite
+*.sqlite-wal
+*.sqlite-shm
 *.db
 
 # Environment / secrets

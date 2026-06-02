@@ -222,16 +222,90 @@ def load_cached_990pf_xml(object_id: str) -> Optional[str]:
     return None
 
 
+def _download_zip_to_cache(year: int, chunk: str) -> Path:
+    """
+    Download a bulk 990 ZIP chunk to data/raw/ (cached). Returns the local path.
+
+    The IRS bundles ALL Form 990 series returns (990, 990-EZ, 990-PF) in these
+    archives, so callers must filter to 990-PF after extraction.
+    """
+    cache = RAW_DATA_DIR / f"_chunk_{year}_{chunk}.zip"
+    if cache.exists() and cache.stat().st_size > 1_000_000:
+        log.info("Using cached ZIP %s", cache.name)
+        return cache
+
+    url = f"{IRS_BASE}/{year}/download990xml_{year}_{chunk}.zip"
+    log.info("Downloading ZIP chunk %s for %d (~400MB, one time)…", chunk, year)
+    resp = requests.get(url, timeout=600, stream=True)
+    resp.raise_for_status()
+
+    downloaded = 0
+    with open(cache, "wb") as fh:
+        for data in resp.iter_content(chunk_size=1024 * 1024):
+            fh.write(data)
+            downloaded += len(data)
+            if downloaded % (50 * 1024 * 1024) == 0:
+                log.info("  Downloaded %d MB…", downloaded // (1024 * 1024))
+    return cache
+
+
+def sample_990pf_from_zip(year: int, chunk: str = "1", max_filings: int = 400,
+                          save: bool = True) -> dict[str, str]:
+    """
+    Download a bulk 990 ZIP chunk and return 990-PF filings from it.
+
+    Reads the ZIP directly and filters to 990-PF returns by inspecting each
+    file's ReturnTypeCd (the bulk archives mix 990, 990-EZ and 990-PF, and the
+    annual index CSVs do NOT line up with the ZIP contents — so we filter here
+    rather than matching ObjectIds).
+
+    Args:
+        year:        Processing year of the archive (e.g. 2020). ZIPs exist for
+                     2017-2020 as numbered chunks '1'..'8', 2021+ as '01A' etc.
+        chunk:       Chunk identifier within the year.
+        max_filings: Stop after collecting this many 990-PF filings.
+        save:        If True, cache each extracted XML under data/raw/990pf/.
+
+    Returns:
+        Dict mapping object_id → xml_text for up to `max_filings` 990-PF returns.
+    """
+    cache = _download_zip_to_cache(year, chunk)
+    results = {}
+
+    with zipfile.ZipFile(cache) as zf:
+        for name in zf.namelist():
+            if len(results) >= max_filings:
+                break
+            data = zf.read(name)
+            # Fast pre-filter before full XML parse
+            if b"ReturnTypeCd>990PF" not in data:
+                continue
+            oid = name.replace("_public.xml", "")
+            xml_text = data.decode("utf-8", errors="replace")
+            results[oid] = xml_text
+            if save:
+                out_dir = RAW_DATA_DIR / "990pf"
+                out_dir.mkdir(exist_ok=True)
+                (out_dir / f"{oid}.xml").write_text(xml_text, encoding="utf-8")
+
+    log.info("Collected %d 990-PF filings from %d chunk %s", len(results), year, chunk)
+    return results
+
+
 def parse_990pf_grants(xml_text: str) -> list[dict]:
     """
     Parse a 990-PF XML filing and extract grants paid to organizations.
 
-    Targets the GrantsAndContributionsPaidGrp section, which lists:
-      - recipient name
-      - recipient EIN (if disclosed)
+    Targets the GrantOrContributionPdDurYrGrp section (Form 990-PF Part XV,
+    "Grants and Contributions Paid During the Year"), which lists:
+      - recipient business/person name
       - recipient address (city, state)
       - grant amount
       - grant purpose
+
+    NOTE: 990-PF grant records do NOT include the recipient's EIN — the form
+    only requires name and address. recipient_ein is therefore always None;
+    recipients are identified by name + state.
 
     Args:
         xml_text: Raw XML string of a 990-PF filing.
@@ -255,7 +329,7 @@ def parse_990pf_grants(xml_text: str) -> list[dict]:
     tax_year = _text(root, ".//irs:TaxYr")
 
     grants = []
-    for grp in root.findall(".//irs:GrantsAndContributionsPaidGrp", _NS):
+    for grp in root.findall(".//irs:GrantOrContributionPdDurYrGrp", _NS):
         recipient_name = (
             _text(grp, "irs:RecipientBusinessName/irs:BusinessNameLine1Txt")
             or _text(grp, "irs:RecipientPersonNm")
@@ -265,7 +339,7 @@ def parse_990pf_grants(xml_text: str) -> list[dict]:
             "funder_name": funder_name,
             "tax_year": tax_year,
             "recipient_name": recipient_name,
-            "recipient_ein": _text(grp, "irs:RecipientEIN"),
+            "recipient_ein": None,  # not present in 990-PF grant records
             "recipient_city": _text(grp, "irs:RecipientUSAddress/irs:CityNm"),
             "recipient_state": _text(grp, "irs:RecipientUSAddress/irs:StateAbbreviationCd"),
             "grant_amount": _text(grp, "irs:Amt"),
@@ -296,7 +370,7 @@ def parse_990pf_funder_summary(xml_text: str) -> dict:
         "state": _text(root, ".//irs:Filer/irs:USAddress/irs:StateAbbreviationCd"),
         "total_assets": _text(root, ".//irs:TotalAssetsEOYAmt"),
         "total_revenue": _text(root, ".//irs:TotalRevAndExpnssAmt"),
-        "total_grants_paid": _text(root, ".//irs:TotalGrantsAndContriPdAmt"),
+        "total_grants_paid": _text(root, ".//irs:TotalGrantOrContriPdDurYrAmt"),
     }
 
 

@@ -14,18 +14,20 @@ Sub-questions:
 
 ## Key Findings
 
-> *This section will be updated once Notebooks 01–03 are run against the full dataset.*
+*From a working sample of ~2,000 private-foundation (990-PF) returns in the IRS 2020 e-file release (fiscal years ~2018–2019): 21,000+ grants, of which ~225 were flagged as racial-equity-related. Numbers are sample-specific; the pipeline scales to more release years.*
 
-- **2020 surge:** Annual racial equity grantmaking roughly doubled after 2020, consistent with [Candid's published findings](https://blog.candid.org/post/what-does-candids-grants-data-say-about-funding-for-racial-equity-in-the-united-states/) of a ~$16.8B cumulative total since 2020.
-- **Funder concentration:** The top 20 foundations account for a disproportionate share of total racial equity dollars (HHI analysis in Notebook 03).
-- **Geographic concentration:** New York, California, and D.C. receive the majority of grant dollars; per-capita funding tells a different story.
+- **Racial equity is a small, concentrated slice.** Racial-equity-tagged grants are a low single-digit share of all foundation grants in the sample, and the dollars are highly concentrated — a handful of mission-aligned funders (e.g., The California Endowment) account for the large majority (high Herfindahl-Hirschman Index).
+- **Recipients cluster geographically**, tracking where large racial-equity funders are based.
+- **Issue mix leads with health, immigration, and civil/voting rights**, inferred from grant-purpose text (990-PF filings carry no recipient EIN, so NTEE codes require the Candid integration).
+
+> These patterns echo [Candid's published research](https://blog.candid.org/post/what-does-candids-grants-data-say-about-funding-for-racial-equity-in-the-united-states/) that funding for racial/ethnic communities is a modest, concentrated share of U.S. giving. A genuine pre/post-2020 time series requires loading multiple IRS release years (the analysis code is in place and runs when the data spans 2020).
 
 ## Methodology
 
-1. **Data collection** — IRS 990-PF filings sourced via two methods: (a) index CSVs from `apps.irs.gov` (fast, covering 2017–2023, listing all e-filed 990-PFs with EINs and filing metadata); (b) optional bulk ZIP download for XML grant detail (~400 MB/year). Recipient org data enriched via the ProPublica Nonprofit Explorer API. Note: the IRS deprecated its AWS S3 e-file bucket in December 2021 — individual XML files at `s3.amazonaws.com/irs-form-990/` are no longer accessible.
-2. **Racial equity classification** — Grants are flagged as racial-equity-related if the `grant_purpose` field matches a keyword regex based on [Candid/PRE terminology](https://blog.candid.org/post/what-counts-as-racial-equity-funding/). Keywords defined in `src/data_cleaning.py`.
-3. **Storage** — All cleaned data loaded into a local SQLite database (schema in `sql/create_tables.sql`).
-4. **Analysis** — Summary statistics, time series, geographic, and issue-area breakdowns in `notebooks/03_exploratory_analysis.ipynb`. Pre/post-2020 significance test uses Welch's t-test.
+1. **Data collection** — IRS 990-PF grant detail is parsed from the bulk e-file XML archives at `apps.irs.gov` (one ~400 MB ZIP chunk per run, cached locally; the IRS deprecated its AWS S3 bucket in Dec 2021). The archives mix 990/990-EZ/990-PF, so returns are filtered to 990-PF, and each filing's Part XV grant schedule is parsed for recipient, amount, and purpose. A few funders are enriched via the ProPublica Nonprofit Explorer API. *990-PF grant records contain no recipient EIN*, so recipients are keyed by name + state.
+2. **Racial equity classification** — Grants are flagged as racial-equity-related if the `grant_purpose` text matches a keyword regex based on [Candid/PRE terminology](https://blog.candid.org/post/what-counts-as-racial-equity-funding/). Keywords are defined in `src/data_cleaning.py`.
+3. **Storage** — Cleaned data is loaded into a local SQLite database (schema in `sql/create_tables.sql`): `foundations`, `grants`, `recipients`, `demographics`.
+4. **Analysis** — Summary stats, funder concentration (HHI), geographic and issue-area breakdowns, and grant-size distribution in `notebooks/03_exploratory_analysis.ipynb`. A pre/post-2020 Welch's t-test is included and activates automatically once the loaded data spans years on both sides of 2020.
 
 ## Repository Structure
 
