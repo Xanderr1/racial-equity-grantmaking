@@ -1,6 +1,8 @@
 # Racial Equity in U.S. Grantmaking
 
-A data analysis of racial equity funding trends in the United States, using IRS 990-PF filings, the ProPublica Nonprofit Explorer API, and Candid's Demographics and grants APIs.
+A data pipeline and analysis of racial equity funding trends in the United States, built on IRS 990-PF e-file data and the ProPublica Nonprofit Explorer API. (Candid's Demographics and Premier APIs are scaffolded in `src/api_client.py` for future enrichment, pending an API key.)
+
+> Companion to the *pew-racial-attitudes* project: this one analyzes how **funders** behave; that one analyzes what the **public** thinks.
 
 ## Research Question
 
@@ -97,11 +99,23 @@ Install the [Jupyter extension](https://marketplace.visualstudio.com/items?itemN
 | [Candid Demographics API](https://developer.candid.org/) | API key (trial) | Leadership/board demographics |
 | [Candid Premier API](https://developer.candid.org/) | API key (trial) | Curated grants database |
 
+## Tested environment
+
+Built and verified on Windows with Python 3.14; all four notebooks run end-to-end via
+`jupyter nbconvert` and are committed **with their outputs** so results are visible here without
+running. The IRS bulk ZIP (~400 MB) is cached after first download; raw/processed data and the
+SQLite database are gitignored (reproducible by running the notebooks).
+
 ## References
 
 - Candid. ["What does Candid's grants data say about funding for racial equity?"](https://blog.candid.org/post/what-does-candids-grants-data-say-about-funding-for-racial-equity-in-the-united-states/)
 - Candid. ["What counts as racial equity funding?"](https://blog.candid.org/post/what-counts-as-racial-equity-funding/)
 - Philanthropic Initiative for Racial Equity (PRE): [racialequity.org](https://racialequity.org)
 
+## Data attribution
+
+IRS Form 990-PF e-file data is in the public domain. ProPublica Nonprofit Explorer data is used
+under their API terms. This repository's code is MIT-licensed (see `LICENSE`).
+
 ---
-*Built with Claude Code
+*Built with [Claude Code](https://claude.com/claude-code) as an AI-assisted development tool.*
